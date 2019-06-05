@@ -291,6 +291,10 @@ hqDefine("reports/js/data_corrections", [
 
         // Setup to do once property names exist
         self.init = function () {
+            // Throw away any property names that we don't have data for
+            self.propertyNames(_.intersection(self.propertyNames(), _.keys(options.properties)));
+
+            // Turn properties into knockout models
             self.properties = _.extend({}, _.mapObject(options.properties, function (data, name) {
                 if (typeof(data) === "string") {
                     data = { value: data };
@@ -301,6 +305,8 @@ hqDefine("reports/js/data_corrections", [
                     display: _.without(data, 'name', 'value'),
                 }));
             }));
+
+            // Initialize UI
             self.generateSearchableNames();
             self.clearQuery(true);
             self.currentPage(1);
@@ -311,9 +317,7 @@ hqDefine("reports/js/data_corrections", [
 
         // Initialization: fetch property names if needed
         var _loadPropertyNames = function (names) {
-            _.each(names, function (name) {
-                self.propertyNames.push(name);
-            });
+            self.propertyNames(names);
             self.showSpinner(false);
             self.init();
         };

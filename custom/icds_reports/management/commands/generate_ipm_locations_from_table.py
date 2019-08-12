@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand
 
 class ChampFilter(SqlData):
 
-    domain = 'ipm-senegal'
+    domain = 'test-pna'
     table = 'operateur_combined'
     column_names = [
         'region_id',
@@ -56,7 +56,7 @@ class ChampFilter(SqlData):
 
 def _create_type(name):
     try:
-        LocationType.objects.create(name=name, domain='ipm-senegal')
+        LocationType.objects.create(name=name, domain='test-pna')
         print('Created location type \'{}\''.format(name))
     except Exception as err:
         print('Unhandled error: {}'.format(err.message))
@@ -76,7 +76,7 @@ def _get_parent(parent_id):
 
 def _get_dictionary(args):
     locations_data = {
-        'domain': 'ipm-senegal',
+        'domain': 'test-pna',
         'name': args[0],
         'location_id': args[1],
         'location_type_id': args[2],
@@ -109,28 +109,28 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         print('Creating location types...')
-        region_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
-        district_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
-        pps_type_exists = LocationType.objects.filter(name='region', domain='ipm-senegal').exists()
+        region_type_exists = LocationType.objects.filter(name='region', domain='test-pna').exists()
+        district_type_exists = LocationType.objects.filter(name='region', domain='test-pna').exists()
+        pps_type_exists = LocationType.objects.filter(name='region', domain='test-pna').exists()
 
         if region_type_exists:
-            print('Type \'region\' for domain \'ipm-senegal\' already exists')
+            print('Type \'region\' for domain \'test-pna\' already exists')
         else:
             _create_type('region')
 
         if district_type_exists:
-            print('Type \'district\' for domain \'ipm-senegal\' already exists')
+            print('Type \'district\' for domain \'test-pna\' already exists')
         else:
             _create_type('district')
 
         if pps_type_exists:
-            print('Type \'pps\' for domain \'ipm-senegal\' already exists')
+            print('Type \'pps\' for domain \'test-pna\' already exists')
         else:
             _create_type('pps')
 
-        region_type_id = LocationType.objects.get(name='region', domain='ipm-senegal').id
-        district_type_id = LocationType.objects.get(name='district', domain='ipm-senegal').id
-        pps_type_id = LocationType.objects.get(name='pps', domain='ipm-senegal').id
+        region_type_id = LocationType.objects.get(name='region', domain='test-pna').id
+        district_type_id = LocationType.objects.get(name='district', domain='test-pna').id
+        pps_type_id = LocationType.objects.get(name='pps', domain='test-pna').id
         rows = ChampFilter().data
         site_code = 0
 

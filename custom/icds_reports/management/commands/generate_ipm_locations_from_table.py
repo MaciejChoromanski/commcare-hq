@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand
 class ChampFilter(SqlData):
 
     domain = 'test-pna'
-    table = 'operateur_combined'
+    table = 'yeksi_naa_reports_consumption'
     column_names = [
         'region_id',
         'region_name',

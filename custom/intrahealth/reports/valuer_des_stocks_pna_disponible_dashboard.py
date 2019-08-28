@@ -17,9 +17,9 @@ from custom.intrahealth.utils import PNAMultiBarChart
 
 
 class ValuerDesStocksPNADisponsibleReport(CustomProjectReport, DatespanMixin, ProjectReportParametersMixin):
-    slug = 'valeur_des_stocks_pna_disponible_report'
-    comment = 'Valeur des stocks PNA disponible'
-    name = 'Valeur des stocks PNA disponible'
+    slug = 'taux_des_stocks_pna_disponible_report'
+    comment = 'Valeur des stocks PNA disponible (chaque produit)'
+    name = 'Taux des stocks PNA disponible'
     default_rows = 10
     exportable = True
 
@@ -69,11 +69,11 @@ class ValuerDesStocksPNADisponsibleReport(CustomProjectReport, DatespanMixin, Pr
 
     @property
     def report_context(self):
-        context = {
-            'report': self.get_report_context(),
-            'title': self.name,
-            'charts': self.charts if not self.needs_filters else None
-        }
+        context = {}
+        if not self.needs_filters:
+            context['report'] = self.get_report_context()
+            context['charts'] = self.charts
+            context['title'] = self.name
 
         return context
 

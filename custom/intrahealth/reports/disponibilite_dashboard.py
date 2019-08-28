@@ -69,11 +69,11 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
 
     @property
     def report_context(self):
-        context = {
-            'report': self.get_report_context(),
-            'charts': self.charts if not self.needs_filters else None,
-            'title': self.name
-        }
+        context = {}
+        if not self.needs_filters:
+            context['report'] = self.get_report_context()
+            context['charts'] = self.charts
+            context['title'] = self.name
 
         return context
 

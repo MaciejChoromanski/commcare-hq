@@ -64,11 +64,11 @@ class TauxDePeremptionReport(CustomProjectReport, DatespanMixin, ProjectReportPa
 
     @property
     def report_context(self):
-        context = {
-            'report': self.get_report_context(),
-            'title': self.name,
-            'charts': self.charts if not self.needs_filters else None
-        }
+        context = {}
+        if not self.needs_filters:
+            context['report'] = self.get_report_context()
+            context['charts'] = self.charts
+            context['title'] = self.name
 
         return context
 

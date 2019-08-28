@@ -5095,7 +5095,7 @@ class SatisfactionRateAfterDeliveryPerProductData(VisiteDeLOperateurPerProductDa
 
 
 class ValuationOfPNAStockPerProductV2Data(VisiteDeLOperateurPerProductDataSource):
-    slug = 'valeur_des_stocks_pna_disponible_chaque_produit'
+    slug = 'taux_des_stocks_pna_disponible_report'
     comment = 'Valeur des stocks PNA disponible (chaque produit)'
     title = 'Valeur des stocks PNA disponible (chaque produit)'
     show_total = True

@@ -67,10 +67,10 @@ class IndicateursDeBaseReport(CustomProjectReport, YeksiNaaMonthYearMixin):
 
     @property
     def report_context(self):
-        context = {
-            'report': self.get_report_context(),
-            'title': self.name
-        }
+        context = {}
+        if not self.needs_filters:
+            context['report'] = self.get_report_context()
+            context['title'] = self.name
 
         return context
 

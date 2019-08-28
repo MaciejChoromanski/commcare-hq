@@ -3901,13 +3901,13 @@ class ValuationOfPNAStockPerProductData(VisiteDeLOperateurPerProductDataSource):
         return headers
 
 
-class VisiteDeLOperateurPerProductV2DataSource(SqlData):
-    slug = 'disponibilite'
-    comment = 'Disponibilité de la gamme au niveau PPS : combien de PPS ont eu tous les produits disponibles'
-    title = 'Disponibilité'
+class OutstockAndAvailabilityDataSource(SqlData):
+    slug = ''
+    comment = ''
+    title = ''
 
     def __init__(self, config):
-        super(VisiteDeLOperateurPerProductV2DataSource, self).__init__()
+        super(OutstockAndAvailabilityDataSource, self).__init__()
         self.config = config
 
     @property
@@ -3920,6 +3920,15 @@ class VisiteDeLOperateurPerProductV2DataSource(SqlData):
         doc_id = StaticDataSourceConfiguration.get_doc_id(config_domain, YEKSI_NAA_REPORTS_CONSUMPTION)
         config, _ = get_datasource_config(doc_id, config_domain)
         return get_table_name(config_domain, config.table_id)
+
+    @property
+    def filters(self):
+        filters = [BETWEEN('real_date_precise', 'startdate', 'enddate')]
+        if self.config['product_product']:
+            filters.append(EQ('product_id', 'product_product'))
+        elif self.config['product_program']:
+            filters.append(EQ('program_id', 'product_program'))
+        return filters
 
     @cached_property
     def selected_location(self):
@@ -3957,14 +3966,11 @@ class VisiteDeLOperateurPerProductV2DataSource(SqlData):
             return self.config['selected_location']
         return None
 
-    @property
-    def filters(self):
-        filters = [BETWEEN('real_date_precise', 'startdate', 'enddate')]
-        if self.config['product_product']:
-            filters.append(EQ('product_id', 'product_product'))
-        elif self.config['product_program']:
-            filters.append(EQ('program_id', 'product_program'))
-        return filters
+
+class VisiteDeLOperateurPerProductV2DataSource(OutstockAndAvailabilityDataSource):
+    slug = 'disponibilite'
+    comment = 'Disponibilité de la gamme au niveau PPS : combien de PPS ont eu tous les produits disponibles'
+    title = 'Disponibilité'
 
     @property
     def group_by(self):

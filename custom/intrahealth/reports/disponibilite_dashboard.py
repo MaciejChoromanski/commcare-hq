@@ -1,162 +1,30 @@
 # coding=utf-8
 
-import datetime
-
-from django.utils.functional import cached_property
-
-from corehq.apps.hqwebapp.decorators import use_nvd3
-from corehq.apps.locations.models import SQLLocation
-from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumn
 from corehq.apps.reports.graph_models import Axis
-from corehq.apps.reports.standard import ProjectReportParametersMixin, CustomProjectReport, DatespanMixin
+from corehq.apps.reports.standard import DatespanMixin
 from custom.intrahealth.filters import YeksiNaaLocationFilter, ProgramsAndProductsFilter, DateRangeFilter
 from custom.intrahealth.sqldata import VisiteDeLOperateurPerProductV2DataSource
-from dimagi.utils.dates import force_to_date
 
-from custom.intrahealth.utils import PNAMultiBarChart
+from custom.intrahealth.utils import PNAMultiBarChart, SingleReport
 
 
-class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParametersMixin):
+class DisponibiliteReport(SingleReport, DatespanMixin):
     name = "Disponibilité"
     slug = 'disponibilite_report'
     comment = 'Taux de disponibilité de la gamme'
-    default_rows = 10
-    exportable = True
 
-    report_template_path = 'yeksi_naa/tabular_report.html'
-
-    @property
-    def export_table(self):
-        report = [
-            [
-                'Disponibilité',
-                [],
-            ]
-        ]
-        headers = [x.html for x in self.headers]
-        rows = self.calculate_rows()
-        report[0][1].append(headers)
-
-        for row in rows:
-            location_name = row[0]
-            location_name = location_name.replace('<b>', '')
-            location_name = location_name.replace('</b>', '')
-
-            row_to_return = [location_name]
-
-            rows_length = len(row)
-            for r in range(1, rows_length):
-                value = row[r]['html']
-                value = value.replace('<b>', '')
-                value = value.replace('</b>', '')
-                row_to_return.append(value)
-
-            report[0][1].append(row_to_return)
-
-        return report
-
-    @use_nvd3
-    def decorator_dispatcher(self, request, *args, **kwargs):
-        super(DisponibiliteReport, self).decorator_dispatcher(request, *args, **kwargs)
-
-    @property
-    def fields(self):
-        return [DateRangeFilter, ProgramsAndProductsFilter, YeksiNaaLocationFilter]
-
-    @cached_property
-    def rendered_report_title(self):
-        return self.name
-
-    @property
-    def report_context(self):
-        context = {}
-        if not self.needs_filters:
-            context['report'] = self.get_report_context()
-            context['charts'] = self.charts
-            context['title'] = self.name
-
-        return context
-
-    @property
-    def selected_location(self):
-        try:
-            return SQLLocation.objects.get(location_id=self.request.GET.get('location_id'))
-        except SQLLocation.DoesNotExist:
-            return None
-
-    @property
-    def selected_location_type(self):
-        if self.selected_location:
-            location_type = self.selected_location.location_type.code
-            if location_type == 'region':
-                return 'District'
-            else:
-                return 'PPS'
-        else:
-            return 'Region'
-
-    @property
-    def products(self):
-        products_names = []
-
-        for row in self.clean_rows:
-            for product_info in row['products']:
-                product_name = product_info['product_name']
-                if product_name not in products_names:
-                    products_names.append(product_name)
-
-        products_names = sorted(products_names)
-
-        return products_names
-
-    @property
-    def headers(self):
-        headers = DataTablesHeader(
-            DataTablesColumn(self.selected_location_type),
-        )
-
-        if self.selected_location_type != 'PPS':
-            products = self.products
-            for product in products:
-                headers.add_column(DataTablesColumn(product))
-        else:
-            headers.add_column(DataTablesColumn('Produits disponibles'))
-
-        return headers
-
-    def get_report_context(self):
-        if self.needs_filters:
-            headers = []
-            rows = []
-        else:
-            rows = self.calculate_rows()
-            headers = self.headers
-
-        context = dict(
-            report_table=dict(
-                title=self.name,
-                slug=self.slug,
-                comment=self.comment,
-                headers=headers,
-                rows=rows,
-                default_rows=self.default_rows,
-            )
-        )
-
-        return context
+    fields = [DateRangeFilter, ProgramsAndProductsFilter, YeksiNaaLocationFilter]
 
     @property
     def clean_rows(self):
         return VisiteDeLOperateurPerProductV2DataSource(config=self.config).rows
 
     def calculate_rows(self):
-
         def data_to_rows(stocks_list):
             stocks_to_return = []
             added_locations = []
             locations_with_products = {}
             all_products = self.products
-
             for stock in stocks_list:
                 location_id = stock['location_id']
                 location_name = stock['location_name']
@@ -187,10 +55,8 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                             all_ppses = product['all_ppses']
                             products_to_add[index]['in_ppses'] += in_ppses
                             products_to_add[index]['all_ppses'] += all_ppses
-
                     for product in products_to_add:
                         locations_with_products[location_name].append(product)
-
             for location, products in locations_with_products.items():
                 products_names = [x['product_name'] for x in products]
                 for product_name in all_products:
@@ -201,7 +67,6 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                             'in_ppses': 0,
                             'all_ppses': 0,
                         })
-
             if self.selected_location_type != 'PPS':
                 for location, products in locations_with_products.items():
                     stocks_to_return.append([
@@ -230,6 +95,7 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                     for product_info in products_list:
                         in_ppses += product_info['in_ppses']
                         all_ppses += product_info['all_ppses']
+
                     percent = (in_ppses / float(all_ppses) * 100) \
                         if all_ppses != 0 else 'pas de données'
                     if percent != 'pas de données':
@@ -241,13 +107,11 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
 
             total_row = calculate_total_row(locations_with_products)
             stocks_to_return.append(total_row)
-
             return stocks_to_return
 
         def calculate_total_row(locations_with_products):
             total_row_to_return = ['<b>SYNTHESE</b>']
             data_for_total_row = []
-
             for location, products in locations_with_products.items():
                 products_list = sorted(products, key=lambda x: x['product_name'])
                 if not data_for_total_row:
@@ -282,13 +146,11 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                     'html': '<b>{:.2f} %</b>'.format(percent),
                     'sort_key': percent,
                 })
-
             return total_row_to_return
 
         rows = data_to_rows(self.clean_rows)
 
         return rows
-
     @property
     def charts(self):
         chart = PNAMultiBarChart(None, Axis('Product'), Axis('Percent', format='.2f'))
@@ -302,7 +164,6 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
             stocks_to_return = []
             products_data = []
             added_products = []
-
             for stock in stocks_list:
                 location_id = stock['location_id']
                 location_name = stock['location_name']
@@ -360,7 +221,6 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                     else:
                         availability_for_ppses[location_id]['in_ppses'] += in_ppses
                         availability_for_ppses[location_id]['all_ppses'] += all_ppses
-
                 for location_id, location_info in availability_for_ppses.items():
                     location_name = location_info['location_name']
                     in_ppses = location_info['in_ppses']
@@ -373,7 +233,6 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
                             'sort_key': percent
                         }
                     ])
-
             return stocks_to_return
 
         def get_data_for_graph():
@@ -381,7 +240,6 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
             rows = data_to_chart(self.clean_rows)
             for row in rows:
                 com.append({"x": row[0], "y": row[1]['sort_key']})
-
             return [
                 {
                     "key": 'Taux de disponibilité de la Gamme des produits',
@@ -390,24 +248,5 @@ class DisponibiliteReport(CustomProjectReport, DatespanMixin, ProjectReportParam
             ]
 
         chart.data = get_data_for_graph()
-        return [chart]
 
-    @property
-    def config(self):
-        config = dict(
-            domain=self.domain,
-        )
-        if self.request.GET.get('startdate'):
-            startdate = force_to_date(self.request.GET.get('startdate'))
-        else:
-            startdate = datetime.datetime.now()
-        if self.request.GET.get('enddate'):
-            enddate = force_to_date(self.request.GET.get('enddate'))
-        else:
-            enddate = datetime.datetime.now()
-        config['startdate'] = startdate
-        config['enddate'] = enddate
-        config['product_program'] = self.request.GET.get('product_program')
-        config['product_product'] = self.request.GET.get('product_product')
-        config['selected_location'] = self.request.GET.get('location_id')
-        return config
+        return [chart]

@@ -9,11 +9,12 @@ from django.utils.functional import cached_property
 
 from couchdbkit.exceptions import ResourceNotFound
 
-from dimagi.utils.dates import force_to_datetime
+from corehq.apps.hqwebapp.decorators import use_nvd3
+from dimagi.utils.dates import force_to_datetime, force_to_date
 
 from corehq.apps.locations.models import get_location, SQLLocation
 from corehq.apps.products.models import SQLProduct
-from corehq.apps.reports.datatables import DataTablesHeader
+from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumn
 from corehq.apps.reports.graph_models import MultiBarChart
 from corehq.apps.reports.standard import CustomProjectReport, ProjectReportParametersMixin
 from corehq.apps.users.models import CouchUser, CommCareUser
@@ -413,3 +414,170 @@ class MultiReport(CustomProjectReport, YeksiNaaMixin, ProjectReportParametersMix
             table.append(_unformat_row(total_row))
 
         return [export_sheet_name, table]
+
+
+class SingleReport(CustomProjectReport, ProjectReportParametersMixin):
+    name = ''
+    slug = ''
+    comment = ''
+    default_rows = 10
+    exportable = True
+
+    report_template_path = 'yeksi_naa/tabular_report.html'
+    fields = []
+
+    @property
+    def export_table(self):
+        report = [
+            [
+                self.name,
+                [],
+            ]
+        ]
+        headers_to_export = self._get_headers_for_export()
+        rows_to_export = self._get_rows_for_export()
+        report[0][1].append(headers_to_export)
+
+        for row_to_export in rows_to_export:
+            report[0][1].append(row_to_export)
+
+        return report
+
+    def _get_headers_for_export(self):
+        headers_for_export = []
+        for header in self.headers:
+            if header.html:
+                headers_for_export.append(header.html)
+            else:
+                headers_for_export.append(header)
+
+        return headers_for_export
+
+    def _get_rows_for_export(self):
+        rows_for_export = []
+        for row in self.calculate_rows():
+            location_name = row[0]
+            row_to_return = [location_name]
+
+            rows_length = len(row)
+            for r in range(1, rows_length):
+                value = row[r].get('html', '')
+                row_to_return.append(value)
+
+            rows_for_export.append(row_to_return)
+
+        return rows_for_export
+
+    @use_nvd3
+    def decorator_dispatcher(self, request, *args, **kwargs):
+        super(SingleReport, self).decorator_dispatcher(request, *args, **kwargs)
+
+    @cached_property
+    def rendered_report_title(self):
+        return self.name
+
+    @property
+    def report_context(self):
+        context = {}
+        if not self.needs_filters:
+            context['report'] = self.get_report_context()
+            context['title'] = self.name
+            if self.charts:
+                context['charts'] = self.charts
+
+        return context
+
+    @property
+    def selected_location(self):
+        try:
+            return SQLLocation.objects.get(location_id=self.request.GET.get('location_id'))
+        except SQLLocation.DoesNotExist:
+            return None
+
+    @property
+    def selected_location_type(self):
+        if self.selected_location:
+            location_type = self.selected_location.location_type.code
+            if location_type == 'region':
+                return 'District'
+            else:
+                return 'PPS'
+        else:
+            return 'Region'
+
+    @property
+    def clean_rows(self):
+        return []
+
+    def calculate_rows(self):
+        return self.clean_rows
+
+    @property
+    def charts(self):
+        return []
+
+    @property
+    def products(self):
+        products_names = []
+
+        for row in self.clean_rows:
+            for product_info in row['products']:
+                product_name = product_info['product_name']
+                if product_name not in products_names:
+                    products_names.append(product_name)
+
+        products_names = sorted(products_names)
+
+        return products_names
+
+    @property
+    def headers(self):
+        headers = DataTablesHeader(
+            DataTablesColumn(self.selected_location_type),
+        )
+
+        for product in self.products:
+            headers.add_column(DataTablesColumn(product))
+
+        return headers
+
+    def get_report_context(self):
+        if self.needs_filters:
+            headers = []
+            rows = []
+        else:
+            rows = self.calculate_rows()
+            headers = self.headers
+
+        context = {
+            'report_table': {
+                'title': self.name,
+                'slug': self.slug,
+                'comment': self.comment,
+                'headers': headers,
+                'rows': rows,
+                'default_rows': self.default_rows,
+            }
+        }
+
+        return context
+
+    @property
+    def config(self):
+        config = {
+            'domain': self.domain,
+        }
+        if self.request.GET.get('startdate'):
+            startdate = force_to_date(self.request.GET.get('startdate'))
+        else:
+            startdate = datetime.datetime.now()
+        if self.request.GET.get('enddate'):
+            enddate = force_to_date(self.request.GET.get('enddate'))
+        else:
+            enddate = datetime.datetime.now()
+        config['startdate'] = startdate
+        config['enddate'] = enddate
+        config['product_program'] = self.request.GET.get('product_program')
+        config['product_product'] = self.request.GET.get('product_product')
+        config['selected_location'] = self.request.GET.get('location_id')
+        return config

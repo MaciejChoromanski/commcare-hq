@@ -123,8 +123,11 @@ class GapDescriptionFilter(BaseSingleOptionFilter):
             ('no conversion factor available', 'no conversion factor available'),
             ('no fct data available', 'no fct data available'),
             ('not applicable', 'not applicable'),
-            ('using conversion factor from base term food code', 'using conversion factor from base term food code'),
-            ('using fct data from base term food code', 'using fct data from base term food code'),
+            (
+                'using conversion factor from the reference food code',
+                'using conversion factor from the reference food code'
+            ),
+            ('using fct data from the reference food code', 'using fct data from the reference food code'),
         ]
 
     @property

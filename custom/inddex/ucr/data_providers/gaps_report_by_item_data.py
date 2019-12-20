@@ -87,6 +87,10 @@ class GapsReportByItemDataMixin(FoodConsumptionDataSourceMixin):
 
         return all_data_raw
 
+    @property
+    def default_values(self):
+        return {}
+
     @staticmethod
     def _normalize_text(text):
         return text.replace('_', ' ', text.count('_')).capitalize()
@@ -258,10 +262,10 @@ class GapsReportByItemDataMixin(FoodConsumptionDataSourceMixin):
             'not_applicable': '9'
         }
         descriptions = {
-            '1': 'FCT data available',
-            '2': 'using FCT data from the reference food code',
-            '3': 'no FCT data available',
-            '4': 'ingredient(s) missing FCT data',
+            '1': 'fct data available',
+            '2': 'using fct data from the reference food code',
+            '3': 'no fct data available',
+            '4': 'ingredient(s) missing fct data',
             '9': 'not applicable',
         }
 
@@ -279,6 +283,22 @@ class GapsReportByItemDataMixin(FoodConsumptionDataSourceMixin):
         ])
 
     def _get_ordered_rows(self, all_rows):
+
+        def add_row(rows):
+            for header in self.headers_in_order:
+                default = self.default_values.get(header)
+                if header == 'parent_food_code':
+                    header = 'reference_food_code'
+                list_ = all_rows.get(header)
+                if not list_:
+                    all_rows[header] = [(x, default) for x in range(definitive_length)]
+                position, value = all_rows[header][0]
+                if position == r:
+                    rows[-1].append(value)
+                    all_rows[header].pop(0)
+                else:
+                    rows[-1].append(default)
+
         if not self.headers_in_order:
             return all_rows
         else:
@@ -288,18 +308,7 @@ class GapsReportByItemDataMixin(FoodConsumptionDataSourceMixin):
             definitive_length = len(all_rows['food_code'])
             for r in range(definitive_length):
                 ordered_rows.append([])
-                for header in self.headers_in_order:
-                    if header == 'parent_food_code':
-                        header = 'reference_food_code'
-                    list_ = all_rows.get(header)
-                    if not list_:
-                        all_rows[header] = [(x, None) for x in range(definitive_length)]
-                    position, value = all_rows[header][0]
-                    if position == r:
-                        ordered_rows[-1].append(value)
-                        all_rows[header].pop(0)
-                    else:
-                        ordered_rows[-1].append(None)
+                add_row(ordered_rows)
 
             return ordered_rows
 
@@ -360,6 +369,34 @@ class GapsReportByItemDataMixin(FoodConsumptionDataSourceMixin):
         for tuple_ in all_rows[main_keys[0]]:
             all_rows[main_keys[1]].append((tuple_[0], descriptions[tuple_[1]]))
 
+    def _get_filtered_rows(self, ordered_rows, additional_filters_indexes_dict):
+
+        def check_if_tuple_valid(r, k, i):
+            if not self.additional_filters.get(k[0]) and not self.additional_filters.get(k[1]):
+                return True
+            if r[i[0]] != self.additional_filters.get(k[0]) and r[i[1]] != self.additional_filters.get(k[1]):
+                return False
+
+        def check_if_not_tuple_valid(r, k, i):
+            if not self.additional_filters.get(k):
+                return True
+            if r[i] != self.additional_filters.get(k):
+                return False
+
+        filtered_rows = []
+        for row in ordered_rows:
+            valids = []
+            for key, index in additional_filters_indexes_dict.items():
+                if isinstance(key, tuple):
+                    valids.append(check_if_tuple_valid(row, key, index))
+                else:
+                    valids.append(check_if_not_tuple_valid(row, key, index))
+
+            if False not in valids:
+                filtered_rows.append(row)
+
+        return filtered_rows
+
 
 class GapsReportByItemSummaryData(GapsReportByItemDataMixin):
     total_row = None
@@ -378,6 +415,13 @@ class GapsReportByItemSummaryData(GapsReportByItemDataMixin):
         self.config = config
 
     @property
+    def additional_filters(self):
+        return {
+            'fct_gap_desc': self.config['gap_description'],
+            'conv_factor_gap_desc': self.config['gap_description'],
+        }
+
+    @property
     def additional_headers(self):
         return {
             'ds': [],
@@ -390,7 +434,15 @@ class GapsReportByItemSummaryData(GapsReportByItemDataMixin):
         self._append_number_of_occurrences(raw_rows)
         self._append_report_data_type(raw_rows, 'gap_by_item_summary')
 
-        return self._get_ordered_rows(raw_rows)
+        return self._get_filtered_rows(self._get_ordered_rows(raw_rows), {
+            ('fct_gap_desc', 'conv_factor_gap_desc'): (9, 7)
+        })
+
+    @property
+    def default_values(self):
+        return {
+            'number_of_occurrences': '1'
+        }
 
     @staticmethod
     def _get_number_of_occurrences(food_codes, parent_food_codes):
@@ -442,9 +494,9 @@ class GapsReportByItemDetailsData(GapsReportByItemDataMixin):
         'conv_method_desc', 'conv_option_desc', 'conv_size', 'conv_units',
         'opened_by_username', 'owner_name', 'quantity', 'recall_date', 'short_name', 'time_block',
         'unique_respondent_id', 'recall_case_id',
-        # 'nsr_consumed_cooked_ratio', 'nsr_conv_method_desc_post_cooking', 'nsr_conv_method_post_cooking',
-        # 'nsr_conv_option_desc_post_cooking', 'nsr_conv_option_post_cooking', 'nsr_conv_size_post_cooking',
-        # 'nsr_same_conv_method',
+        'nsr_consumed_cooked_ratio', 'nsr_conv_method_desc_post_cooking', 'nsr_conv_method_post_cooking',
+        'nsr_conv_option_desc_post_cooking', 'nsr_conv_option_post_cooking', 'nsr_conv_size_post_cooking',
+        'nsr_same_conv_method',
     ]
 
     def __init__(self, config):

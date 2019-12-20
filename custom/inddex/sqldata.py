@@ -4,7 +4,7 @@ from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumn
 from corehq.apps.reports.sqlreport import SqlData, DatabaseColumn
 from corehq.apps.userreports.util import get_table_name
 
-FOOD_CONSUMPTION = 'food_consumption_indicators'
+FOOD_CONSUMPTION = 'food_consumption'
 
 
 class DataSourceMixin(SqlData):

@@ -9,7 +9,7 @@
     "config": {
         "engine_id": "ucr",
         "referenced_doc_type": "CommCareCase",
-        "table_id": "food_consumption_indicators",
+        "table_id": "food_consumption",
         "description": "",
         "display_name": "Food Consumption",
         "configured_filter": {
